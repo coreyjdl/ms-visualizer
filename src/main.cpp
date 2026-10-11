@@ -1,4 +1,8 @@
+#ifdef _WIN32
 #include <GL/glew.h>
+#else
+#include <GLES3/gl3.h>
+#endif
 #include <SDL.h>
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
@@ -6,13 +10,18 @@
 #include <projectM-4/projectM.h>
 #include <projectM-4/playlist.h>
 #include <nlohmann/json.hpp>
+#ifdef _WIN32
 #include <windows.h>
 #include <shlobj.h>
 #include <shellapi.h>
+#endif
 #include "audio.hpp"
 #include "capture.hpp"
 
 #include <chrono>
+#include <cstdio>
+#include <ctime>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -30,26 +39,43 @@ namespace {
 namespace fs = std::filesystem;
 using Clock = std::chrono::steady_clock;
 std::ofstream logFile;
+#ifdef _WIN32
+constexpr const char* appName = "MS-Visualizer";
+constexpr const char* glslVersion = "#version 330 core\n";
+#else
+constexpr const char* appName = "Pi-Visualizer";
+constexpr const char* glslVersion = "#version 300 es\nprecision highp float;\n";
+#endif
 void log(const std::string& message) {
-    SYSTEMTIME time{};
-    GetLocalTime(&time);
-    logFile << std::setfill('0') << std::setw(2) << time.wHour << ':'
-            << std::setw(2) << time.wMinute << ':' << std::setw(2) << time.wSecond
-            << " " << message << std::endl;
+    const auto now = std::time(nullptr);
+    logFile << std::put_time(std::localtime(&now), "%H:%M:%S") << " " << message << std::endl;
+    std::fprintf(stderr, "%s\n", message.c_str());
 }
 
 fs::path executableDirectory() {
+#ifdef _WIN32
     std::vector<wchar_t> path(32768);
     const auto length = GetModuleFileNameW(nullptr, path.data(), static_cast<DWORD>(path.size()));
     if (!length || length == path.size()) throw std::runtime_error("Cannot locate the application folder");
     return fs::path(std::wstring(path.data(), length)).parent_path();
+#else
+    return fs::canonical("/proc/self/exe").parent_path();
+#endif
 }
 fs::path settingsDirectory() {
+#ifdef _WIN32
     PWSTR folder = nullptr;
     if (FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &folder)))
         throw std::runtime_error("Cannot locate Windows application settings folder");
     const auto path = fs::path(folder) / "MS-Visualizer";
     CoTaskMemFree(folder);
+#else
+    const char* config = std::getenv("XDG_CONFIG_HOME");
+    const char* home = std::getenv("HOME");
+    if ((!config || !*config) && (!home || !*home))
+        throw std::runtime_error("Cannot locate the application settings folder");
+    const auto path = (config && *config ? fs::path(config) : fs::path(home) / ".config") / "Pi-Visualizer";
+#endif
     fs::create_directories(path);
     return path;
 }
@@ -102,8 +128,12 @@ void saveSettings(const fs::path& path, const Settings& settings) {
         output.close();
         if (!output) throw std::runtime_error("Cannot write settings. Check folder permissions.");
     }
+#ifdef _WIN32
     if (!MoveFileExW(temporary.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
         throw std::runtime_error("Cannot replace saved settings");
+#else
+    fs::rename(temporary, path);
+#endif
 }
 
 class ProjectM {
@@ -195,16 +225,14 @@ GLuint compile(GLenum type, const char* source) {
 class Presentation {
 public:
     Presentation() {
-        const char* vertex = R"(
-#version 330 core
+        const std::string vertex = std::string(glslVersion) + R"(
 out vec2 uv;
 void main() {
     vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
     uv = p;
     gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
 })";
-        const char* fragment = R"(
-#version 330 core
+        const std::string fragment = std::string(glslVersion) + R"(
 in vec2 uv;
 out vec4 outputColor;
 uniform sampler2D frame;
@@ -221,8 +249,8 @@ void main() {
     color += vec3(0.06, 0.4, 0.65) * ring * beat * audible;
     outputColor = vec4(color, 1);
 })";
-        const auto vs = compile(GL_VERTEX_SHADER, vertex);
-        const auto fs = compile(GL_FRAGMENT_SHADER, fragment);
+        const auto vs = compile(GL_VERTEX_SHADER, vertex.c_str());
+        const auto fs = compile(GL_FRAGMENT_SHADER, fragment.c_str());
         program_ = glCreateProgram();
         glAttachShader(program_, vs);
         glAttachShader(program_, fs);
@@ -306,17 +334,24 @@ struct Graphics {
         if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER) < 0)
             throw std::runtime_error(SDL_GetError());
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+#ifdef _WIN32
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+#else
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+#endif
         SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-        window = SDL_CreateWindow("MS-Visualizer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        window = SDL_CreateWindow(appName, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                   1100, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
         if (!window) throw std::runtime_error(std::string("Cannot create window: ") + SDL_GetError());
         SDL_SetWindowMinimumSize(window, 640, 480);
         context = SDL_GL_CreateContext(window);
-        if (!context) throw std::runtime_error(std::string("OpenGL 3.3 is required. Update graphics drivers: ") + SDL_GetError());
+        if (!context) throw std::runtime_error(std::string("Cannot create required graphics context: ") + SDL_GetError());
+#ifdef _WIN32
         glewExperimental = GL_TRUE;
         if (glewInit() != GLEW_OK) throw std::runtime_error("Cannot initialize OpenGL functions");
+#endif
         while (glGetError() != GL_NO_ERROR) {}
         log(std::string("GPU: ") + reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
         log(std::string("OpenGL: ") + reinterpret_cast<const char*>(glGetString(GL_VERSION)));
@@ -327,7 +362,7 @@ struct Graphics {
         ImGui::StyleColorsDark();
         ImGui::GetStyle().ScaleAllSizes(1.2F);
         ImGui::GetIO().FontGlobalScale = 1.2F;
-        if (!ImGui_ImplSDL2_InitForOpenGL(window, context) || !ImGui_ImplOpenGL3_Init("#version 330"))
+        if (!ImGui_ImplSDL2_InitForOpenGL(window, context) || !ImGui_ImplOpenGL3_Init(glslVersion))
             throw std::runtime_error("Cannot initialize control panel");
         uiReady = true;
     }
@@ -346,9 +381,9 @@ struct Graphics {
 int run(const std::vector<std::wstring>& arguments) {
     const auto folder = executableDirectory();
     const auto configFolder = settingsDirectory();
-    logFile.open(configFolder / "MS-Visualizer.log", std::ios::trunc);
+    logFile.open(configFolder / (std::string(appName) + ".log"), std::ios::trunc);
     if (!logFile) throw std::runtime_error("Cannot open the application log");
-    log("MS-Visualizer 0.1.2 starting");
+    log(std::string(appName) + " starting");
     msvis::Capture capture;
     auto inputs = capture.enumerate();
     for (const auto& input : inputs) log("Input: " + input.name + " | " + input.id);
@@ -389,8 +424,13 @@ int run(const std::vector<std::wstring>& arguments) {
         }
     }
     bool testTone = smoke;
-    bool controls = true;
+    bool controls = std::find(arguments.begin(), arguments.end(), L"--hide-controls") == arguments.end();
     bool fullscreen = false;
+    if (std::find(arguments.begin(), arguments.end(), L"--fullscreen") != arguments.end()) {
+        if (SDL_SetWindowFullscreen(graphics.window, SDL_WINDOW_FULLSCREEN_DESKTOP) < 0)
+            throw std::runtime_error(SDL_GetError());
+        fullscreen = true;
+    }
     bool done = false;
     std::string activeInput;
     std::string info;
@@ -403,7 +443,7 @@ int run(const std::vector<std::wstring>& arguments) {
     double captureEnergy = 0;
     std::size_t captureFrames = 0;
     unsigned pulseFrames = 0, silentFrames = 0;
-    bool shaderVerified = false, freezeVerified = false;
+    bool shaderVerified = false, freezeVerified = false, runtimeVerified = false;
     std::vector<unsigned char> silentImage;
     auto action = [&](const std::function<void()>& function) {
         try { function(); }
@@ -543,8 +583,12 @@ int run(const std::vector<std::wstring>& arguments) {
         if (controls) {
             ImGui::SetNextWindowPos(ImVec2(18, 18), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(510, 650), ImGuiCond_FirstUseEver);
-            ImGui::Begin("MS-Visualizer / Audio setup", nullptr, ImGuiWindowFlags_NoCollapse);
+            ImGui::Begin((std::string(appName) + " / Audio setup").c_str(), nullptr, ImGuiWindowFlags_NoCollapse);
+#ifdef _WIN32
             ImGui::TextWrapped("Mixer / band: choose a USB or microphone input. DJ / Spotify: choose the speakers playing the music.");
+#else
+            ImGui::TextWrapped("Spotify: choose the visualizer monitor. Mixer / microphone: choose its ALSA capture input.");
+#endif
             ImGui::Separator();
             const char* selectedName = selected >= 0 ? inputs[selected].name.c_str() : "Saved input disconnected - select an input";
             if (ImGui::BeginCombo("Audio input", selectedName)) {
@@ -619,10 +663,15 @@ int run(const std::vector<std::wstring>& arguments) {
             if (ImGui::Button("Hide controls (F1)")) controls = false;
             ImGui::SameLine();
             if (ImGui::Button("Open presets folder")) action([&] {
+#ifdef _WIN32
                 const auto result = ShellExecuteW(nullptr, L"open", (folder / "presets").c_str(),
                                                    nullptr, nullptr, SW_SHOWNORMAL);
                 if (reinterpret_cast<INT_PTR>(result) <= 32)
                     throw std::runtime_error("Windows could not open the presets folder");
+#else
+                const auto url = "file://" + (folder / "presets").u8string();
+                if (SDL_OpenURL(url.c_str()) < 0) throw std::runtime_error(SDL_GetError());
+#endif
             });
             ImGui::TextWrapped("F1: controls | F11: fullscreen | Space: next preset | Esc: show controls");
             if (!info.empty()) ImGui::TextWrapped("%s", info.c_str());
@@ -654,6 +703,7 @@ int run(const std::vector<std::wstring>& arguments) {
             if (captureTest && !captureFrames)
                 throw std::runtime_error("WASAPI input produced no audio callbacks; capture was not verified");
             if (smoke) log("VERIFY PASS: measured beat image change and stable silent image");
+            runtimeVerified = true;
             done = true;
         }
         SDL_GL_SwapWindow(graphics.window);
@@ -667,11 +717,14 @@ int run(const std::vector<std::wstring>& arguments) {
             std::this_thread::sleep_for(std::chrono::milliseconds(33) - frameTime);
     }
     capture.stop();
+    if ((smoke || captureTest) && !runtimeVerified)
+        throw std::runtime_error("Runtime verification was interrupted before completing");
     log("Exited normally");
     return 0;
 }
 } // namespace
 
+#ifdef _WIN32
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     try {
         int count = 0;
@@ -687,3 +740,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         return 1;
     }
 }
+#else
+int main(int argc, char** argv) {
+    try {
+        std::vector<std::wstring> arguments;
+        for (int i = 1; i < argc; ++i) {
+            const std::string text(argv[i]);
+            arguments.emplace_back(text.begin(), text.end());
+        }
+        return run(arguments);
+    } catch (const std::exception& error) {
+        log(std::string("FATAL: ") + error.what());
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Pi-Visualizer - cannot start", error.what(), nullptr);
+        return 1;
+    }
+}
+#endif

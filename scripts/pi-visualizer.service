@@ -1,0 +1,15 @@
+[Unit]
+Description=Pi-Visualizer projectM audio-reactive display
+After=graphical-session.target spotify-visualizer-monitor.service
+Wants=spotify-visualizer-monitor.service
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+Environment=SDL_VIDEODRIVER=wayland
+ExecStart=%h/pi-visualizer/build/Pi-Visualizer --fullscreen --hide-controls
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target

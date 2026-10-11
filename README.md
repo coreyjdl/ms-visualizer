@@ -4,6 +4,9 @@ A standalone **Windows 10/11 x64** projectM visualizer for a bar, live band,
 or DJ setup. Built from scratch for Windows: no Raspberry Pi services,
 desktop scripts, ALSA loopback, browser, or Spotify login needed.
 
+The **[Pi-Visualizer edition](README-PI.md)** uses the same app and reactive
+rendering code with Raspberry Pi GLES graphics and ALSA audio capture.
+
 ## Start
 
 Download the Windows ZIP from [Releases](https://github.com/coreyjdl/ms-visualizer/releases),
