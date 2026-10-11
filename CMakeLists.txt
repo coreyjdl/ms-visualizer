@@ -15,22 +15,22 @@ include(FetchContent)
 find_package(SDL2 CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 if(WIN32)
-find_package(GLEW REQUIRED)
-find_package(glm CONFIG REQUIRED)
-set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
-set(ENABLE_GLES OFF CACHE BOOL "" FORCE)
-set(ENABLE_SYSTEM_GLM ON CACHE BOOL "" FORCE)
-set(ENABLE_SYSTEM_PROJECTM_EVAL OFF CACHE BOOL "" FORCE)
-set(ENABLE_PLAYLIST ON CACHE BOOL "" FORCE)
-set(ENABLE_SDL_UI OFF CACHE BOOL "" FORCE)
-set(ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
-set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-set(BUILD_DOCS OFF CACHE BOOL "" FORCE)
-FetchContent_Declare(projectm
-  URL https://github.com/projectM-visualizer/projectm/releases/download/v4.1.6/libprojectM-4.1.6.tar.gz
-  URL_HASH SHA256=1b9e6d56c59fe24e5416da4d42e941a34c982811003e43ac88b5aca8afa52c87
-  DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
-FetchContent_MakeAvailable(projectm)
+  find_package(GLEW REQUIRED)
+  find_package(glm CONFIG REQUIRED)
+  set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
+  set(ENABLE_GLES OFF CACHE BOOL "" FORCE)
+  set(ENABLE_SYSTEM_GLM ON CACHE BOOL "" FORCE)
+  set(ENABLE_SYSTEM_PROJECTM_EVAL OFF CACHE BOOL "" FORCE)
+  set(ENABLE_PLAYLIST ON CACHE BOOL "" FORCE)
+  set(ENABLE_SDL_UI OFF CACHE BOOL "" FORCE)
+  set(ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+  set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+  set(BUILD_DOCS OFF CACHE BOOL "" FORCE)
+  FetchContent_Declare(projectm
+    URL https://github.com/projectM-visualizer/projectm/releases/download/v4.1.6/libprojectM-4.1.6.tar.gz
+    URL_HASH SHA256=1b9e6d56c59fe24e5416da4d42e941a34c982811003e43ac88b5aca8afa52c87
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+  FetchContent_MakeAvailable(projectm)
 else()
   find_package(PkgConfig REQUIRED)
   pkg_check_modules(PI_DEPS REQUIRED IMPORTED_TARGET sdl2 alsa glesv2 projectM-4>=4.1 projectM-4-playlist)
@@ -42,16 +42,16 @@ FetchContent_Declare(imgui
   GIT_SHALLOW FALSE)
 FetchContent_MakeAvailable(imgui)
 if(WIN32)
-file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/dependencies")
-file(DOWNLOAD
-  https://raw.githubusercontent.com/mackron/miniaudio/350784a9467a79d0fa65802132668e5afbcf3777/miniaudio.h
-  "${CMAKE_BINARY_DIR}/dependencies/miniaudio.h"
-  EXPECTED_HASH SHA256=9019743287e443c55e5737a7297f38e5e358561701d6db2d905afb114390c410
-  TLS_VERIFY ON STATUS MINIAUDIO_DOWNLOAD)
-list(GET MINIAUDIO_DOWNLOAD 0 MINIAUDIO_STATUS)
-if(NOT MINIAUDIO_STATUS EQUAL 0)
-  message(FATAL_ERROR "miniaudio download failed: ${MINIAUDIO_DOWNLOAD}")
-endif()
+  file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/dependencies")
+  file(DOWNLOAD
+    https://raw.githubusercontent.com/mackron/miniaudio/350784a9467a79d0fa65802132668e5afbcf3777/miniaudio.h
+    "${CMAKE_BINARY_DIR}/dependencies/miniaudio.h"
+    EXPECTED_HASH SHA256=9019743287e443c55e5737a7297f38e5e358561701d6db2d905afb114390c410
+    TLS_VERIFY ON STATUS MINIAUDIO_DOWNLOAD)
+  list(GET MINIAUDIO_DOWNLOAD 0 MINIAUDIO_STATUS)
+  if(NOT MINIAUDIO_STATUS EQUAL 0)
+    message(FATAL_ERROR "miniaudio download failed: ${MINIAUDIO_DOWNLOAD}")
+  endif()
 endif()
 
 add_library(ui STATIC

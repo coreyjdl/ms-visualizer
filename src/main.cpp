@@ -81,7 +81,11 @@ fs::path settingsDirectory() {
 }
 
 struct Settings {
+#ifdef _WIN32
     std::string deviceId;
+#else
+    std::string deviceId = "visualizer_monitor";
+#endif
     bool loopback = true;
     bool autoStart = true;
     bool reactive = true;
