@@ -1,0 +1,46 @@
+name: Windows portable build
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore vcpkg
+        shell: pwsh
+        run: |
+          git clone --filter=blob:none https://github.com/microsoft/vcpkg "$env:RUNNER_TEMP\vcpkg"
+          git -C "$env:RUNNER_TEMP\vcpkg" checkout ef7dbf94b9198bc58f45951adcf1f041fcbc5ea0
+          & "$env:RUNNER_TEMP\vcpkg\bootstrap-vcpkg.bat" -disableMetrics
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Configure
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 "-DCMAKE_TOOLCHAIN_FILE=$env:RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Compile
+        run: cmake --build build --config Release --parallel 2
+      - name: Verify beat response
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Package portable app
+        shell: pwsh
+        run: ./scripts/package.ps1
+      - name: Include exact dependency source
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/projectM-visualizer/projectm/releases/download/v4.1.6/libprojectM-4.1.6.tar.gz -OutFile out/libprojectM-4.1.6.tar.gz
+          Copy-Item build/dependencies/miniaudio.h out/miniaudio-0.11.22.h
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MS-Visualizer-windows-x64
+          path: |
+            out/MS-Visualizer-windows-x64.zip
+            out/libprojectM-4.1.6.tar.gz
+            out/miniaudio-0.11.22.h
+          if-no-files-found: error
