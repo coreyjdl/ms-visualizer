@@ -92,6 +92,13 @@ Settings and `MS-Visualizer.log` are stored under
 startup errors show a Windows dialog. A disconnected saved input is reported,
 not silently replaced with a different microphone.
 
+For deployment over Windows SSH, copy the extracted folder to
+`%LOCALAPPDATA%\Programs\MS-Visualizer`, then run the bundled
+`start-desktop.ps1 -CreateShortcut` in PowerShell. It launches through a
+limited, interactive scheduled task for the already logged-in user;
+an ordinary SSH process cannot display a window on the venue desktop.
+No password is saved. A Windows user must be logged in locally.
+
 **Paused Spotify but meter still moves:** system loopback includes all audio
 on the selected speakers, not only Spotify. Check other applications, and
 check Spotify Connect is playing on this PC rather than another device.

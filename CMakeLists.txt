@@ -34,6 +34,7 @@ FetchContent_Declare(imgui
   GIT_TAG f5befd2d29e66809cd1110a152e375a7f1981f06
   GIT_SHALLOW FALSE)
 FetchContent_MakeAvailable(imgui)
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/dependencies")
 file(DOWNLOAD
   https://raw.githubusercontent.com/mackron/miniaudio/350784a9467a79d0fa65802132668e5afbcf3777/miniaudio.h
   "${CMAKE_BINARY_DIR}/dependencies/miniaudio.h"

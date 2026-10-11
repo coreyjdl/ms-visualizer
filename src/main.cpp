@@ -289,6 +289,13 @@ void screenshot(int width, int height, const fs::path& path) {
         throw std::runtime_error(std::string("Cannot save screenshot: ") + SDL_GetError());
 }
 
+std::vector<unsigned char> readFrame(int width, int height) {
+    std::vector<unsigned char> pixels(static_cast<std::size_t>(width) * height * 4);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+    return pixels;
+}
+
 struct Graphics {
     SDL_Window* window = nullptr;
     SDL_GLContext context = nullptr;
@@ -363,6 +370,11 @@ int run(const std::vector<std::wstring>& arguments) {
         error = std::string("Saved settings could not be loaded; defaults shown. ") + failure.what();
         log(error);
     }
+    if (smoke) {
+        settings = {};
+        settings.autoStart = false;
+        settings.cycleSeconds = 0;
+    }
     Graphics graphics;
     ProjectM projectm(folder / "presets");
     Presentation presentation;
@@ -390,6 +402,8 @@ int run(const std::vector<std::wstring>& arguments) {
     double captureEnergy = 0;
     std::size_t captureFrames = 0;
     unsigned pulseFrames = 0, silentFrames = 0;
+    bool shaderVerified = false, freezeVerified = false;
+    std::vector<unsigned char> silentImage;
     auto action = [&](const std::function<void()>& function) {
         try { function(); }
         catch (const std::exception& failure) { error = failure.what(); log("ERROR: " + error); }
@@ -410,7 +424,7 @@ int run(const std::vector<std::wstring>& arguments) {
         log("Capturing: " + activeInput);
     };
     if (captureTest) {
-        selected = 0;
+        selected = std::find(arguments.begin(), arguments.end(), L"--microphone") != arguments.end() ? 1 : 0;
         action(startInput);
         if (!capture.running()) throw std::runtime_error(error);
     } else if (settings.autoStart && !smoke) action(startInput);
@@ -492,6 +506,35 @@ int run(const std::vector<std::wstring>& arguments) {
         }
         presentation.draw(width, height, levels.pulse, settings.reactive ? settings.strength : 0.0F,
                           levels.audible);
+        if (smoke && !shaderVerified && levels.pulse > 0.5F && levels.audible) {
+            presentation.draw(width, height, 0, 1, true);
+            const auto baseline = readFrame(width, height);
+            presentation.draw(width, height, 1, 1, true);
+            const auto reactive = readFrame(width, height);
+            std::size_t changed = 0;
+            for (std::size_t i = 0; i < baseline.size(); i += 4)
+                if (std::abs(int(baseline[i]) - int(reactive[i])) +
+                    std::abs(int(baseline[i + 1]) - int(reactive[i + 1])) +
+                    std::abs(int(baseline[i + 2]) - int(reactive[i + 2])) > 8) ++changed;
+            if (changed < static_cast<std::size_t>(width) * height / 100)
+                throw std::runtime_error("Beat shader did not measurably change the displayed image");
+            screenshot(width, height, configFolder / "test-beat.bmp");
+            log("VERIFY beat_changed_pixels=" + std::to_string(changed));
+            shaderVerified = true;
+            presentation.draw(width, height, levels.pulse, settings.strength, levels.audible);
+        }
+        const float demoTime = static_cast<float>(demoSample) / msvis::sampleRate;
+        if (smoke && demoTime > 4.3F && demoTime < 5.8F && !levels.audible) {
+            const auto image = readFrame(width, height);
+            if (silentImage.empty()) {
+                silentImage = image;
+                screenshot(width, height, configFolder / "test-silence.bmp");
+            } else {
+                if (image != silentImage)
+                    throw std::runtime_error("Silent input did not freeze the displayed image");
+                freezeVerified = true;
+            }
+        }
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
@@ -592,15 +635,20 @@ int run(const std::vector<std::wstring>& arguments) {
         }
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        if ((smoke || captureTest) && elapsed >= 8) {
+        if (smoke && elapsed > 30 && demoTime < 8)
+            throw std::runtime_error("Graphics rendering is too slow to complete the beat test");
+        if ((smoke && demoTime >= 8) || (captureTest && elapsed >= 8)) {
             screenshot(width, height, configFolder / "smoke-test.bmp");
             log("RESULT pulse_frames=" + std::to_string(pulseFrames) +
                 " silent_frames=" + std::to_string(silentFrames) +
                 " captured_frames=" + std::to_string(captureFrames) +
                 " captured_rms=" + std::to_string(captureFrames ?
                     std::sqrt(captureEnergy / (captureFrames * 2)) : 0));
-            if (smoke && (!pulseFrames || !silentFrames))
+            if (smoke && (!pulseFrames || !silentFrames || !shaderVerified || !freezeVerified))
                 throw std::runtime_error("Synthetic audio response verification failed");
+            if (captureTest && !captureFrames)
+                throw std::runtime_error("WASAPI input produced no audio callbacks; capture was not verified");
+            if (smoke) log("VERIFY PASS: measured beat image change and stable silent image");
             done = true;
         }
         SDL_GL_SwapWindow(graphics.window);

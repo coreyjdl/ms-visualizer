@@ -10,6 +10,7 @@ Copy-Item (Join-Path $root "presets") $output -Recurse -Force
 Copy-Item (Join-Path $root "Start MS-Visualizer.cmd"), (Join-Path $root "README.md"), `
   (Join-Path $root "LICENSE"), (Join-Path $root "THIRD-PARTY-NOTICES.md"), `
   (Join-Path $binary "projectM-LICENSE.txt") $output
+Copy-Item (Join-Path $PSScriptRoot "start-desktop.ps1") $output
 $licenses = Join-Path $output "licenses"
 New-Item -ItemType Directory -Force $licenses | Out-Null
 Get-ChildItem "$buildRoot\vcpkg_installed\x64-windows\share" -Directory | ForEach-Object {
