@@ -21,9 +21,10 @@ Get-ChildItem "$buildRoot\vcpkg_installed\x64-windows\share" -Directory | ForEac
 Copy-Item "$buildRoot\_deps\imgui-src\LICENSE.txt" (Join-Path $licenses "imgui.txt")
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 $vs = & $vswhere -latest -products * -property installationPath
-$crt = Get-ChildItem "$vs\VC\Redist\MSVC" -Directory | Sort-Object Name -Descending | Select-Object -First 1
-$runtime = Join-Path $crt.FullName "x64\Microsoft.VC143.CRT"
-if (!(Test-Path $runtime)) { throw "Visual C++ runtime directory not found" }
-Copy-Item "$runtime\*.dll" $output
+$runtime = Get-ChildItem "$vs\VC\Redist\MSVC" -Directory -Recurse |
+  Where-Object { $_.Name -like "Microsoft.VC*.CRT" -and $_.Parent.Name -eq "x64" } |
+  Sort-Object FullName -Descending | Select-Object -First 1
+if (!$runtime) { throw "Visual C++ x64 runtime directory not found under $vs" }
+Copy-Item (Join-Path $runtime.FullName "*.dll") $output
 Compress-Archive -Path $output -DestinationPath (Join-Path $root "out\MS-Visualizer-windows-x64.zip") -Force
 Write-Host "Portable release: out\MS-Visualizer-windows-x64.zip"
