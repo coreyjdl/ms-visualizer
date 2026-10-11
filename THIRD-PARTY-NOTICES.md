@@ -1,6 +1,15 @@
 # Third-party components
 
 MS-Visualizer and its five original bundled presets are MIT licensed.
+The optional preset installer downloads the official projectM Cream of the Crop
+collection and companion MilkDrop textures separately. These are not relicensed
+under MIT. The upstream collection does not provide an explicit license from each
+author; its notice describes the authors' copyright and an assumption of public
+domain status. The installer preserves that notice, attribution in filenames,
+and an index of original paths. Sources:
+https://github.com/projectM-visualizer/presets-cream-of-the-crop and
+https://github.com/projectM-visualizer/presets-milkdrop-texture-pack.
+
 The application dynamically links **projectM 4.1.6**, licensed under
 LGPL-2.1-or-later. `projectM-LICENSE.txt` is included in the portable package.
 You may replace its DLLs with compatible modified builds. No proprietary

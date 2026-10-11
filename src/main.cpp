@@ -348,7 +348,7 @@ int run(const std::vector<std::wstring>& arguments) {
     const auto configFolder = settingsDirectory();
     logFile.open(configFolder / "MS-Visualizer.log", std::ios::trunc);
     if (!logFile) throw std::runtime_error("Cannot open the application log");
-    log("MS-Visualizer 0.1.0 starting");
+    log("MS-Visualizer 0.1.1 starting");
     msvis::Capture capture;
     auto inputs = capture.enumerate();
     for (const auto& input : inputs) log("Input: " + input.name + " | " + input.id);
@@ -630,12 +630,11 @@ int run(const std::vector<std::wstring>& arguments) {
                 ImGui::TextWrapped("%s", error.c_str());
             }
             ImGui::End();
-        } else {
+        } else if (!error.empty()) {
             ImGui::SetNextWindowPos(ImVec2(10, 10));
             ImGui::SetNextWindowBgAlpha(.5F);
-            ImGui::Begin("Controls", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration);
-            if (ImGui::Button("Audio setup (F1)")) controls = true;
-            if (!error.empty()) ImGui::TextWrapped("%s", error.c_str());
+            ImGui::Begin("Input attention", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration);
+            ImGui::TextWrapped("%s", error.c_str());
             ImGui::End();
         }
         ImGui::Render();

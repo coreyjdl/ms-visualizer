@@ -19,6 +19,27 @@ and input meter must move before troubleshooting presets. Press
 device, input gain, reactive options, silence threshold, and cycle interval.
 The initial default captures the default Windows speakers.
 
+## More presets
+
+Open **Install More Presets.cmd** in the extracted release folder to download
+projectM's official **Cream of the Crop** collection: **9,795 additional presets**
+and its companion MilkDrop textures. Internet access is required; pinned archives
+are SHA-256 verified. Restart the visualizer afterward. The five starter presets
+remain installed. Shortened filenames prevent Windows path-length problems;
+`presets/Cream-of-the-Crop/preset-index.csv` preserves original names and categories.
+
+This is an optional upstream download, not part of the application's MIT license.
+The collection's upstream notice says most presets have no explicit license and
+individual authors retain copyright; it assumes public-domain status based on
+their longstanding free distribution. That is not an explicit license grant from
+each author. The installer preserves the upstream notice and authors' names.
+Some presets are GPU-heavy or incompatible with projectM; the player skips
+failed loads. The installer can be run on each PC, including SSH deployments:
+
+```powershell
+.\install-presets.ps1 -AppDirectory "$env:LOCALAPPDATA\Programs\MS-Visualizer"
+```
+
 | Setup | Input to select |
 | --- | --- |
 | Spotify / DJ software on this PC | **System audio** for the speakers that actually play it |
@@ -79,6 +100,9 @@ produce fewer pulses. Other waveform motion still responds to input.
 | Space | Next preset |
 | Esc | Show controls, not exit |
 | Window close | Exit |
+
+F1 hides the controls completely, without a permanent corner button.
+F1 or Esc brings the panel back. Input errors still display an alert.
 
 Drag the window onto the projector/TV display before selecting fullscreen.
 Rendering is capped at 30 FPS with a 640x480 projectM render surface and
