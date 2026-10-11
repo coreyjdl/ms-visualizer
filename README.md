@@ -103,6 +103,7 @@ produce fewer pulses. Other waveform motion still responds to input.
 
 F1 hides the controls completely, without a permanent corner button.
 F1 or Esc brings the panel back. Input errors still display an alert.
+F1, F11, and Esc work even when a setup control has keyboard focus.
 
 Drag the window onto the projector/TV display before selecting fullscreen.
 Rendering is capped at 30 FPS with a 640x480 projectM render surface and

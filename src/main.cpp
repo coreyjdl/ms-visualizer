@@ -348,7 +348,7 @@ int run(const std::vector<std::wstring>& arguments) {
     const auto configFolder = settingsDirectory();
     logFile.open(configFolder / "MS-Visualizer.log", std::ios::trunc);
     if (!logFile) throw std::runtime_error("Cannot open the application log");
-    log("MS-Visualizer 0.1.1 starting");
+    log("MS-Visualizer 0.1.2 starting");
     msvis::Capture capture;
     auto inputs = capture.enumerate();
     for (const auto& input : inputs) log("Input: " + input.name + " | " + input.id);
@@ -439,10 +439,11 @@ int run(const std::vector<std::wstring>& arguments) {
         while (SDL_PollEvent(&event)) {
             ImGui_ImplSDL2_ProcessEvent(&event);
             if (event.type == SDL_QUIT) done = true;
-            if (event.type == SDL_KEYDOWN && !event.key.repeat && !ImGui::GetIO().WantCaptureKeyboard) {
+            if (event.type == SDL_KEYDOWN && !event.key.repeat) {
                 if (event.key.keysym.sym == SDLK_F1) controls = !controls;
                 if (event.key.keysym.sym == SDLK_ESCAPE) controls = true;
-                if (event.key.keysym.sym == SDLK_SPACE) action([&] { projectm.next(); lastPreset = now; });
+                if (event.key.keysym.sym == SDLK_SPACE && !ImGui::GetIO().WantCaptureKeyboard)
+                    action([&] { projectm.next(); lastPreset = now; });
                 if (event.key.keysym.sym == SDLK_F11) {
                     const bool target = !fullscreen;
                     if (SDL_SetWindowFullscreen(graphics.window, target ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0) < 0)
