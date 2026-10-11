@@ -137,11 +137,14 @@ g++ -std=c++17 -Wall -Wextra -Wpedantic -pthread -Isrc tests/audio_tests.cpp -o 
 
 Runtime diagnostic switches:
 `--list-inputs` writes `inputs.json` alongside the log;
-`--smoke-test` opens a known beat/silence test for eight seconds and writes
+`--smoke-test` opens eight seconds of known beat/silence input and verifies
+an actual rendered pixel difference with the beat effect, then identical
+frames during silence. It writes `test-beat.bmp`, `test-silence.bmp`,
 `smoke-test.bmp` and a pass/failure result to the log;
 `--capture-test` checks the default speaker loopback for eight seconds,
 reporting actual captured frames/RMS (zero RMS is not proof of a working
 music source). It does not turn on a hidden sound source.
+Add `--microphone` to check the default recording endpoint instead.
 
 ## License
 

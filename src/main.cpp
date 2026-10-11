@@ -8,6 +8,7 @@
 #include <nlohmann/json.hpp>
 #include <windows.h>
 #include <shlobj.h>
+#include <shellapi.h>
 #include "audio.hpp"
 #include "capture.hpp"
 
@@ -616,8 +617,12 @@ int run(const std::vector<std::wstring>& arguments) {
             }
             if (ImGui::Button("Hide controls (F1)")) controls = false;
             ImGui::SameLine();
-            if (ImGui::Button("Open presets folder"))
-                ShellExecuteW(nullptr, L"open", (folder / "presets").c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+            if (ImGui::Button("Open presets folder")) action([&] {
+                const auto result = ShellExecuteW(nullptr, L"open", (folder / "presets").c_str(),
+                                                   nullptr, nullptr, SW_SHOWNORMAL);
+                if (reinterpret_cast<INT_PTR>(result) <= 32)
+                    throw std::runtime_error("Windows could not open the presets folder");
+            });
             ImGui::TextWrapped("F1: controls | F11: fullscreen | Space: next preset | Esc: show controls");
             if (!info.empty()) ImGui::TextWrapped("%s", info.c_str());
             if (!error.empty()) {
